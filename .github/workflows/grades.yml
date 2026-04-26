@@ -6,3 +6,35 @@ on:
     branches:
       - main
   workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests
+
+      - name: Restore previous grades
+        uses: actions/cache@v3
+        with:
+          path: last_grades.json
+          key: last-grades
+
+      - name: Run grade checker
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MY_SMS_EMAIL: ${{ secrets.MY_SMS_EMAIL }}
+          COOKIE_STRING: ${{ secrets.COOKIE_STRING }}
+        run: python grades.py
+
+      - name: Save grades
+        uses: actions/cache/save@v3
+        with:
+          path: last_grades.json
+          key: last-grades-${{ github.run_id }}
