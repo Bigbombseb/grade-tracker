@@ -1,9 +1,6 @@
-import json, os, smtplib, requests
-from email.mime.text import MIMEText
+import json, os, requests
 
-GMAIL_ADDRESS = os.environ["GMAIL_ADDRESS"]
-GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
-MY_SMS_EMAIL = os.environ["MY_SMS_EMAIL"]
+# --- SECRETS (loaded from GitHub) ---
 COOKIE_STRING = os.environ["COOKIE_STRING"].replace("\n", "").replace("\r", "").strip()
 
 BASE_URL = "https://taboracademy.myschoolapp.com"
@@ -11,13 +8,23 @@ STUDENT_ID = "7493993"
 GRADES_FILE = "last_grades.json"
 
 def send_text(message):
-    msg = MIMEText(message)
-    msg["From"] = GMAIL_ADDRESS
-    msg["To"] = MY_SMS_EMAIL
-    msg["Subject"] = ""
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
-        server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
-        server.sendmail(GMAIL_ADDRESS, MY_SMS_EMAIL, msg.as_string())
+    bot_token = os.environ["DISCORD_TOKEN"]
+    user_id = os.environ["DISCORD_USER_ID"]
+
+    # Open a DM channel
+    r = requests.post(
+        "https://discord.com/api/v10/users/@me/channels",
+        headers={"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"},
+        json={"recipient_id": user_id}
+    )
+    channel_id = r.json()["id"]
+
+    # Send the message
+    requests.post(
+        f"https://discord.com/api/v10/channels/{channel_id}/messages",
+        headers={"Authorization": f"Bot {bot_token}", "Content-Type": "application/json"},
+        json={"content": message}
+    )
 
 def get_session():
     session = requests.Session()
@@ -31,6 +38,7 @@ def get_session():
 def get_grades(session):
     r = session.get(BASE_URL + "/api/datadirect/ParentStudentUserClassesGet?userId=7493993&schoolYearLabel=2025%20-%202026&memberLevel=3&persona=2&durationList=173822&markingPeriodId=")
     print("Status:", r.status_code)
+
     try:
         data = r.json()
         grades = {}
@@ -69,11 +77,11 @@ def check_for_changes():
 
         if changes:
             send_text("Tabor Grade Update!\n" + "\n".join(changes))
-            print("Text sent:", changes)
+            print("Sent:", changes)
         else:
             print("No changes.")
     else:
-        send_text("Grade tracker is live! You'll get texts when grades change.")
+        send_text("Grade tracker is live! You'll get Discord DMs when grades change.")
         print("First run done.")
 
     with open(GRADES_FILE, "w") as f:
