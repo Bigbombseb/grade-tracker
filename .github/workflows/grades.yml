@@ -17,7 +17,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - run: pip install requests
+      - run: pip install requests playwright python-dotenv
+      - run: python -m playwright install chromium
+      - run: python -m playwright install-deps chromium
 
       - name: Restore previous grades
         uses: actions/cache@v3
@@ -27,9 +29,17 @@ jobs:
           restore-keys: |
             last-grades-
 
+      - name: Auto-refresh cookie
+        env:
+          SCHOOL_SUBDOMAIN: taboracademy
+          SCHOOL_EMAIL: ${{ secrets.TABOR_EMAIL }}
+          SCHOOL_PASS: ${{ secrets.TABOR_PASSWORD }}
+          HEADLESS: "true"
+          TIMEOUT: "30000"
+        run: python auth.py
+
       - name: Run grade checker
         env:
-          COOKIE_STRING: ${{ secrets.COOKIE_STRING }}
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
         run: python grades.py
