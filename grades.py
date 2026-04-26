@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 GMAIL_ADDRESS = os.environ["GMAIL_ADDRESS"]
 GMAIL_APP_PASSWORD = os.environ["GMAIL_APP_PASSWORD"]
 MY_SMS_EMAIL = os.environ["MY_SMS_EMAIL"]
-COOKIE_STRING = os.environ["COOKIE_STRING"]
+COOKIE_STRING = os.environ["COOKIE_STRING"].replace("\n", "").replace("\r", "").strip()
 
 BASE_URL = "https://taboracademy.myschoolapp.com"
 STUDENT_ID = "7493993"
