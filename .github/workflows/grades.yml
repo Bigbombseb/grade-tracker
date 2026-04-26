@@ -23,7 +23,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: last_grades.json
-          key: last-grades
+          key: last-grades-cache
+          restore-keys: |
+            last-grades-
 
       - name: Run grade checker
         env:
