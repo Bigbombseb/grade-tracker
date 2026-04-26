@@ -27,10 +27,9 @@ jobs:
 
       - name: Run grade checker
         env:
-          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          MY_SMS_EMAIL: ${{ secrets.MY_SMS_EMAIL }}
           COOKIE_STRING: ${{ secrets.COOKIE_STRING }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
         run: python grades.py
 
       - name: Save grades
