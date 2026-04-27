@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-python@v4
         with:
@@ -20,14 +22,6 @@ jobs:
       - run: pip install requests playwright python-dotenv
       - run: python -m playwright install chromium
       - run: python -m playwright install-deps chromium
-
-      - name: Restore previous grades
-        uses: actions/cache@v3
-        with:
-          path: last_grades.json
-          key: last-grades-cache
-          restore-keys: |
-            last-grades-
 
       - name: Auto-refresh cookie
         env:
@@ -44,8 +38,10 @@ jobs:
           DISCORD_USER_ID: ${{ secrets.DISCORD_USER_ID }}
         run: python grades.py
 
-      - name: Save grades
-        uses: actions/cache/save@v3
-        with:
-          path: last_grades.json
-          key: last-grades-${{ github.run_id }}
+      - name: Save grades to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add last_grades.json
+          git diff --staged --quiet || git commit -m "Update grades cache"
+          git push
