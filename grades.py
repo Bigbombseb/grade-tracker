@@ -2,7 +2,16 @@ import json, os, requests
 
 BASE_URL = "https://taboracademy.myschoolapp.com"
 STUDENT_ID = "7493993"
+MARKING_PERIOD_ID = "19936"
 GRADES_FILE = "last_grades.json"
+
+SECTIONS = {
+    "Algebra 2": "115175645",
+    "Courage & Conviction": "115172678",
+    "Honors Chemistry": "115175893",
+    "Honors Spanish 3": "115180406",
+    "Honors US History": "115173126"
+}
 
 def send_text(message):
     bot_token = os.environ["DISCORD_TOKEN"]
@@ -30,9 +39,8 @@ def get_session():
     })
     return session
 
-def get_grades(session):
-    r = session.get(BASE_URL + "/api/datadirect/ParentStudentUserClassesGet?userId=7493993&schoolYearLabel=2025%20-%202026&memberLevel=3&persona=2&durationList=173822&markingPeriodId=")
-    print("Status:", r.status_code)
+def get_course_grades(session):
+    r = session.get(BASE_URL + f"/api/datadirect/ParentStudentUserClassesGet?userId={STUDENT_ID}&schoolYearLabel=2025%20-%202026&memberLevel=3&persona=2&durationList=173822&markingPeriodId=")
     try:
         data = r.json()
         grades = {}
@@ -43,35 +51,65 @@ def get_grades(session):
                 if name:
                     grades[name] = str(grade)
         return grades
-    except Exception as e:
-        print("Error parsing grades:", e)
+    except:
         return {}
+
+def get_assignments(session):
+    assignments = {}
+    for course_name, section_id in SECTIONS.items():
+        r = session.get(BASE_URL + f"/api/gradebook/AssignmentPerformanceStudent?sectionId={section_id}&markingPeriodId={MARKING_PERIOD_ID}&studentId={STUDENT_ID}")
+        try:
+            data = r.json()
+            for a in data:
+                assignment_id = str(a.get("AssignmentId", ""))
+                name = a.get("AssignmentShortDescription", "").replace("<br />", "").strip()
+                points = a.get("Points")
+                max_points = a.get("MaxPoints")
+                if assignment_id and name and points is not None and max_points:
+                    pct = round((points / max_points) * 100, 1)
+                    assignments[assignment_id] = {
+                        "course": course_name,
+                        "name": name,
+                        "grade": f"{points}/{max_points} ({pct}%)"
+                    }
+        except:
+            continue
+    return assignments
 
 def check_for_changes():
     session = get_session()
-    current = get_grades(session)
+    current_grades = get_course_grades(session)
+    current_assignments = get_assignments(session)
 
-    if not current:
+    if not current_grades:
         print("No grades found — login may have failed.")
         send_text("Grade tracker: login failed, check your credentials.")
         return
 
-    print("Grades found:", current)
+    print("Grades found:", current_grades)
+    print(f"Assignments found: {len(current_assignments)}")
 
     if os.path.exists(GRADES_FILE):
         with open(GRADES_FILE) as f:
             previous = json.load(f)
 
-        changes = []
-        for subject, grade in current.items():
-            if subject in previous and previous[subject] != grade:
-                changes.append(f"{subject}: {previous[subject]} -> {grade}")
-            elif subject not in previous:
-                changes.append(f"New grade posted: {subject}: {grade}")
+        prev_grades = previous.get("grades", {})
+        prev_assignments = previous.get("assignments", {})
+        messages = []
 
-        if changes:
-            send_text("Tabor Grade Update!\n" + "\n".join(changes))
-            print("Sent:", changes)
+        # Check course grade changes
+        for subject, grade in current_grades.items():
+            if subject in prev_grades and prev_grades[subject] != grade:
+                messages.append(f"📊 {subject}: {prev_grades[subject]} -> {grade}")
+
+        # Check new assignments
+        for assignment_id, info in current_assignments.items():
+            if assignment_id not in prev_assignments:
+                messages.append(f"📝 New grade in {info['course']}:\n    {info['name']}: {info['grade']}")
+
+        if messages:
+            send_text("Tabor Update!\n" + "\n".join(messages))
+            print("Sent:", messages)
         else:
             print("No changes.")
     else:
@@ -79,7 +117,7 @@ def check_for_changes():
         print("First run done.")
 
     with open(GRADES_FILE, "w") as f:
-        json.dump(current, f)
-        print(f"Saved {len(current)} grades.")
+        json.dump({"grades": current_grades, "assignments": current_assignments}, f)
+        print(f"Saved {len(current_grades)} grades and {len(current_assignments)} assignments.")
 
 check_for_changes()
